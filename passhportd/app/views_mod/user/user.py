@@ -258,17 +258,24 @@ def check_user_form(mandatory, request):
     if form["name"] != form["name"].replace(" ",""):
         return utils.response("ERROR: The name can't contain spaces.", 417)
     
-    # Check SSHkey format
-    hashkey = utils.sshkey_good_format(form["sshkey"])
-    if not hashkey:
-        return utils.response("ERROR: The SSHkey format is not recognized", 417)
+    # In case of multiple SSH keys
+    keys = form["sshkey"].split('\n')
 
-    # Check SSHkey unicity
-    if utils.sshkey_already_taken(hashkey):
-        return utils.response("ERROR: Another user is using this SSHkey ", 417)
+    for key in keys:
+        # Check SSHkey format
+        hashkey = utils.sshkey_good_format(key)
+        if not hashkey:
+            return utils.response("ERROR: The SSHkey format is not recognized", 417)
+
+        # Check SSHkey unicity
+        if utils.sshkey_already_taken(hashkey):
+            return utils.response("ERROR: Another user is using this SSHkey ", 417)
+
+    # We failed in case of multiple SSH keys
+    #if form["sshkey"].count('ssh-') == 2:
+    #    return utils.response("ERROR: More than one SSHkey ", 417)
 
     return True
-
 
 @app.route("/user/create", methods=["POST"])
 def user_create():
@@ -280,7 +287,11 @@ def user_create():
     if res is not True:
         return res
 
-    hashkey = utils.sshkey_good_format(request.form["sshkey"])
+    # In case of multiple SSH keys, we concat hashkey
+    keys = request.form["sshkey"].split('\n')
+    hashkey = ''
+    for key in keys:
+        hashkey += utils.sshkey_good_format(key)
 
     if request.form.get("logfilesize"):
         u = user.User(
@@ -292,7 +303,7 @@ def user_create():
     else:
         u = user.User(
             name=request.form["name"],
-            sshkey=request.form["sshkey"],
+            sshkey=request.form["sshkey"].replace('\n', '#'),
             sshkeyhash=hashkey,
             comment=request.form["comment"])
 
@@ -512,37 +523,40 @@ def user_delete(name):
         return utils.response('ERROR: No user with the name "' + name + \
                               '" in the database.', 417)
             
-    authorized_key_line = 'command="' + config.PYTHON_PATH + \
-                          " " + config.PASSHPORT_PATH + \
-                          " " + name + '" ' + query.sshkey + "\n"
+    # In case of multiple SSH keys, we need drop one by one
+    keys = query.sshkey.split('#')
+    for key in keys:
+        authorized_key_line = 'command="' + config.PYTHON_PATH + \
+                              " " + config.PASSHPORT_PATH + \
+                              " " + name + '" ' + key + "\n"
 
-    # Delete the SSH key from the file authorized_keys
-    warning = ""
-    try:
-        with open(config.SSH_KEY_FILE, "r+", encoding="utf8") as \
-            authorized_keys_file:
-            line_deleted = False
-            content = authorized_keys_file.read()
-            authorized_keys_file.seek(0)
+        # Delete the SSH key from the file authorized_keys
+        warning = ""
+        try:
+            with open(config.SSH_KEY_FILE, "r+", encoding="utf8") as \
+                authorized_keys_file:
+                line_deleted = False
+                content = authorized_keys_file.read()
+                authorized_keys_file.seek(0)
 
-            for line in content.split('\n')[:-1]:
-                if not line_deleted:
-                    if line != authorized_key_line[:-1]:
-                        authorized_keys_file.write(line + '\n')
+                for line in content.split('\n')[:-1]:
+                    if not line_deleted:
+                        if line != authorized_key_line[:-1]:
+                            authorized_keys_file.write(line + '\n')
+                        else:
+                            line_deleted = True
                     else:
-                        line_deleted = True
-                else:
-                    if line == authorized_key_line[:-1]:
-                        warning = ("\nWARNING: There is more than one line "
-                            "with the sshkey " + query.sshkey + ", probably "
-                            "added manually. You should delete it manually")
+                        if line == authorized_key_line[:-1]:
+                            warning = ("\nWARNING: There is more than one line "
+                                "with the sshkey " + key + ", probably "
+                                "added manually. You should delete it manually")
 
-                    authorized_keys_file.write(line + '\n')
+                        authorized_keys_file.write(line + '\n')
 
-            authorized_keys_file.truncate()
-    except IOError:
-        return utils.response('ERROR: cannot write in the file ' + \
-                              '"authorized_keys"', 500)
+                authorized_keys_file.truncate()
+        except IOError:
+            return utils.response('ERROR: cannot write in the file ' + \
+                                  '"authorized_keys"', 500)
 
     # Delete the user from the associated targets
     user_data = user.User.query.filter_by(name=name).first()

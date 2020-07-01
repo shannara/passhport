@@ -156,12 +156,15 @@ def sshkey_already_taken(keyhash):
 def write_authorized_keys(name, sshkey):
     """Add the SSH key in authorize_keys with passhport call"""
     try:
-        with open(config.SSH_KEY_FILE, "a", encoding="utf8") as \
-                  authorized_keys_file:
-                  authorized_keys_file.write('command="' + \
+        # In case of multiple SSH keys, we write them
+        keys = sshkey.split('\n')
+        for key in keys:
+            with open(config.SSH_KEY_FILE, "a", encoding="utf8") as \
+                      authorized_keys_file:
+                      authorized_keys_file.write('command="' + \
                                              config.PYTHON_PATH + \
                                              " " + config.PASSHPORT_PATH + \
-                                             " " + name + '" ' + sshkey + "\n")
+                                             " " + name + '" ' + key + "\n")
     except IOError:
         return response('ERROR: cannot write in the file ' + \
                         '"authorized_keys". However, the user is ' + \
