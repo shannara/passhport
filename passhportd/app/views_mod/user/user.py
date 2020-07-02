@@ -271,10 +271,6 @@ def check_user_form(mandatory, request):
         if utils.sshkey_already_taken(hashkey):
             return utils.response("ERROR: Another user is using this SSHkey ", 417)
 
-    # We failed in case of multiple SSH keys
-    #if form["sshkey"].count('ssh-') == 2:
-    #    return utils.response("ERROR: More than one SSHkey ", 417)
-
     return True
 
 @app.route("/user/create", methods=["POST"])
@@ -296,8 +292,8 @@ def user_create():
     if request.form.get("logfilesize"):
         u = user.User(
             name=request.form["name"],
-            sshkey=request.form["sshkey"],
-            sshkeyhash= utils.sshkey_good_format(request.form["sshkey"]),
+            sshkey=request.form["sshkey"].replace('\n', '#'),
+            sshkeyhash=hashkey,
             comment=request.form["comment"],
             logfilesize=request.form.get("logfilesize"))
     else:
