@@ -46,7 +46,9 @@ class User(db.Model):
         output = []
 
         output.append("Email: {}".format(self.name))
-        output.append("SSH key: {}".format(self.sshkey))
+        # In case of multiple keys we need show gently them
+        keys = self.sshkey.replace('#', ' ; ')
+        output.append("SSH keys: {}".format(keys))
         output.append("Comment: {}".format(self.comment))
         output.append("Accessible target list: " + \
             " ".join(self.accessible_targetname_list()))
@@ -63,7 +65,9 @@ class User(db.Model):
         output = "{\n"
 
         output = output + "\"email\": \"" + format(self.name) + "\",\n"
-        output = output + "\"sshkey\": \"" + format(self.sshkey) + "\",\n"
+        # In case of multiple keys we need show gently them
+        keys = self.sshkey.replace('#', '\\n')
+        output = output + "\"sshkey\": \"" + format(keys) + "\",\n"
         output = output + "\"sshkeyhash\": \"" + \
                           format(self.show_sshkeyhash()) + "\",\n"
         output = output + "\"logfilesize\": \"" + \
