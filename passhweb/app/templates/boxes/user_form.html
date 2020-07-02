@@ -19,7 +19,7 @@
                 {% endif %}
             </div>
             <br>
-            <div class="input-group mb-3" data-toggle="tooltip" title="User SSH public key">
+            <div class="input-group mb-3" data-toggle="tooltip" title="User SSH public key. Use shift+Enter for insert another SSH public key">
                 <div class="input-group-prepend"><span class="input-group-text"><i class="fa fa-lock"></i></span></div>
                 {% if elt %}
                     {% set f = form.sshkey.process_data(elt[0]['sshkey']) %}
