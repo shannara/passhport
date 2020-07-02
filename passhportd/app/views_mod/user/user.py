@@ -284,7 +284,9 @@ def user_create():
         return res
 
     # In case of multiple SSH keys, we concat hashkey
-    keys = request.form["sshkey"].split('\n')
+    # and sanitize field from passhweb (remove windows return \r)
+    sanitize_keys = request.form["sshkey"].replace('\r', '')
+    keys = sanitize_keys.split('\n')
     hashkey = ''
     for key in keys:
         hashkey += utils.sshkey_good_format(key)
@@ -292,14 +294,14 @@ def user_create():
     if request.form.get("logfilesize"):
         u = user.User(
             name=request.form["name"],
-            sshkey=request.form["sshkey"].replace('\n', '#'),
+            sshkey=sanitize_keys.replace('\n', '#'),
             sshkeyhash=hashkey,
             comment=request.form["comment"],
             logfilesize=request.form.get("logfilesize"))
     else:
         u = user.User(
             name=request.form["name"],
-            sshkey=request.form["sshkey"].replace('\n', '#'),
+            sshkey=sanitize_keys.replace('\n', '#'),
             sshkeyhash=hashkey,
             comment=request.form["comment"])
 
@@ -309,7 +311,7 @@ def user_create():
 
     # Add the SSH key in the file authorized_keys
     res = utils.write_authorized_keys(request.form["name"], 
-                                      request.form["sshkey"])
+                                      sanitize_keys)
     if res is not True:
         return res
 
